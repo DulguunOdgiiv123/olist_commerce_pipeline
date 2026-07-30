@@ -19,23 +19,20 @@ query = "SELECT * FROM orders"
 
 orders_df = pd.read_sql(query, engine)
 
-#print("shape",orders_df.shape)       # (rows, columns)
-print(orders_df.head())      # first 5 rows
-print(orders_df.dtypes)      # data type of each column
-# Create a new column: True if delivered late, False ["order_estimated_delivery_date"orders_dflo[orders_dfoer_status"] != "delivered","is_late"] = pd.NA
-# How many orders were late?print(orders_df["is_late"
-#
 
 orders_df["is_late"] = orders_df["order_delivered_customer_date"] > orders_df["order_estimated_delivery_date"]
 orders_df["is_late"] = orders_df["is_late"].astype("boolean")  # nullable boolean type
 orders_df.loc[orders_df["order_status"] != "delivered", "is_late"] = pd.NA
 orders_df["delivery_delay_days"] = (orders_df["order_delivered_customer_date"] - orders_df["order_estimated_delivery_date"]).dt.days
 
-#
-# ].value_counts(dropna=Falsel0)
-print(orders_df["is_late"].value_counts())
 
-print(orders_df["order_status"].value_counts())
 
-print(orders_df["delivery_delay_days"].describe())
-print(orders_df["is_late"].isna().sum())
+
+reviews_query = "SELECT * FROM order_reviews"
+reviews_df = pd.read_sql(reviews_query, engine)
+
+merged_df = orders_df.merge(reviews_df, on="order_id",how="left")
+
+avg_score_by_lateness = merged_df.groupby("is_late")["review_score"].mean()
+
+print(avg_score_by_lateness)
