@@ -29,7 +29,7 @@ print(orders_df.dtypes)      # data type of each column
 orders_df["is_late"] = orders_df["order_delivered_customer_date"] > orders_df["order_estimated_delivery_date"]
 orders_df["is_late"] = orders_df["is_late"].astype("boolean")  # nullable boolean type
 orders_df.loc[orders_df["order_status"] != "delivered", "is_late"] = pd.NA
-
+orders_df["delivery_delay_days"] = (orders_df["order_delivered_customer_date"] - orders_df["order_estimated_delivery_date"]).dt.days
 
 #
 # ].value_counts(dropna=Falsel0)
@@ -37,4 +37,5 @@ print(orders_df["is_late"].value_counts())
 
 print(orders_df["order_status"].value_counts())
 
+print(orders_df["delivery_delay_days"].describe())
 print(orders_df["is_late"].isna().sum())
