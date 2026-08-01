@@ -1,7 +1,9 @@
 # Olist E-Commerce ETL Pipeline & Late Delivery Prediction
 
 An end-to-end data pipeline built on the [Olist Brazilian E-Commerce dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce): raw CSVs → PostgreSQL → Python/pandas transformations → a scikit-learn model predicting late deliveries.
+
 > **The business case:** ~8% of Olist orders arrive late — and those orders score nearly 1.75 points lower on customer reviews (out of 5). This project quantifies that cost end-to-end and builds an early-warning model to flag at-risk orders before they ship, using a fully reproducible PostgreSQL → Python → ML → dashboard pipeline.
+
 ## Project Goal
 
 E-commerce delivery reliability directly affects customer satisfaction. This project investigates two questions:
@@ -10,8 +12,6 @@ E-commerce delivery reliability directly affects customer satisfaction. This pro
 2. **Can we predict, before an order ships, whether it's likely to be late?**
 
 ## Architecture
-
-
 Kaggle CSVs (9 files)
 │
 ▼
@@ -29,10 +29,8 @@ PostgreSQL (orders_transformed) + scikit-learn model
 - **PostgreSQL** — relational storage with enforced foreign key constraints
 - **Python** (pandas, SQLAlchemy, psycopg2) — extraction and transformation
 - **scikit-learn** — Random Forest classifier for late-delivery prediction
-- **Git** — version-controlled, reproducible pipeline
+- **Git** — version-controlled, reproducible pipeli
 
-
-## Key Findings
 
 ## Interactive Dashboard
 
@@ -77,3 +75,42 @@ Two real data issues were identified and resolved during the load phase:
 
 - **Missing category translations:** a handful of `product_category_name` values (e.g. `pc_gamer`) had no matching row in the translation table. Loaded via a staging table + `LEFT JOIN`, nulling out unmatched categories rather than dropping the products entirely.
 - **Duplicate review IDs:** a small number of `review_id`s appeared more than once in the raw CSV. Deduplicated using `DISTINCT ON`, keeping the earliest occurrence per review.
+## Project Structure
+
+olist-pipeline/
+├── data/raw/ # source CSVs (not committed — see Setup)
+├── sql/schema.sql # PostgreSQL schema with FK constraints
+├── etl/
+│ ├── transform.py # loads raw data, builds delivery features, joins reviews
+│ ├── build_features.py # builds ML feature set, trains Random Forest model
+│ └── dashboard.py # Streamlit dashboard
+├── screenshots/ # dashboard screenshots for this README
+└── README.md
+
+
+## Setup & Reproduction
+
+1. Download the [Olist dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) into `data/raw/`
+2. Create a PostgreSQL database and run the schema:
+```bash
+   createdb olist
+   psql -d olist -f sql/schema.sql
+```
+3. Load the CSVs into their tables (`\copy` commands, in dependency order)
+4. Set up a Python virtual environment and install dependencies:
+```bash
+   python -m venv .venv
+   source .venv/bin/activate
+   pip install pandas sqlalchemy psycopg2-binary python-dotenv scikit-learn streamlit plotly
+```
+5. Create a `.env` file with your database credentials
+6. Run the pipeline:
+```bash
+   python etl/transform.py
+   python etl/build_features.py
+   streamlit run etl/dashboard.py
+```
+
+## Next Step
+
+The clearest opportunity to improve the model: replace the weak `same_state` proxy with real geographic distance between buyer and seller, computed from the `geolocation` table. Since `same_state` was the least useful feature (0.015 importance) despite distance being an intuitive driver of delay, this suggests the *proxy* was poor — not that distance itself doesn't matter.
