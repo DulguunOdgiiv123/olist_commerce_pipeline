@@ -1,7 +1,7 @@
 # Olist E-Commerce ETL Pipeline & Late Delivery Prediction
 
 An end-to-end data pipeline built on the [Olist Brazilian E-Commerce dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce): raw CSVs → PostgreSQL → Python/pandas transformations → a scikit-learn model predicting late deliveries.
-
+> **The business case:** ~8% of Olist orders arrive late — and those orders score nearly 1.75 points lower on customer reviews (out of 5). This project quantifies that cost end-to-end and builds an early-warning model to flag at-risk orders before they ship, using a fully reproducible PostgreSQL → Python → ML → dashboard pipeline.
 ## Project Goal
 
 E-commerce delivery reliability directly affects customer satisfaction. This project investigates two questions:
@@ -31,8 +31,21 @@ PostgreSQL (orders_transformed) + scikit-learn model
 - **scikit-learn** — Random Forest classifier for late-delivery prediction
 - **Git** — version-controlled, reproducible pipeline
 
+
 ## Key Findings
 
+## Interactive Dashboard
+
+Built with Streamlit + Plotly to make the delivery/review relationship explorable, not just reported as static numbers.
+
+![Dashboard overview: order metrics and review score comparison](screenshots/dashboard1.png)
+
+![Delivery delay distribution histogram](screenshots/dashboard2.png)
+
+Run it locally with:
+```bash
+streamlit run etl/dashboard.py
+```
 ### Late delivery devastates review scores
 
 | Delivery status | Avg. review score (out of 5) |
