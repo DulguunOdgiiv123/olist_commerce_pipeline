@@ -52,7 +52,6 @@ streamlit run etl/dashboard.py
 | Late | 2.56 |
 
 Across 96,478 delivered orders, ~8.1% arrived after the estimated delive1ry date — and those orders scored nearly **1.75 points lower** on average. This is one of the clearest signals in the dataset: delivery reliability appears to be a dominant driver of customer satisfaction.
-
 ### Predicting late delivery: a Random Forest classifier
 
 Using pre-delivery features only (price, freight value, product dimensions/weight, estimated delivery window, purchase timing, same-state shipping), a Random Forest was trained to predict `is_late`.
@@ -66,6 +65,7 @@ Using pre-delivery features only (price, freight value, product dimensions/weigh
 | Overall accuracy | 0.90 |
 
 **Honest interpretation:** overall accuracy (90%) is misleading here, since the dataset is ~92% on-time by default — a model that always predicted "on time" would already score close to that. The more meaningful metrics are precision/recall on the late class, and this first model only catches 17% of actual late deliveries. This suggests the available order-level features (price, weight, timing) are only weakly predictive of lateness on their own.
+
 
 **Feature importance** (top 3): `freight_value`, `estimated_delivery_days`, `price`. Notably, a simple `same_state` binary flag was the weakest feature (0.015) — a poor proxy for actual shipping distance. A likely next step to meaningfully improve the model would be computing real geographic distance using the geolocation table, since carrier logistics (not order characteristics) are probably the dominant cause of delays.
 

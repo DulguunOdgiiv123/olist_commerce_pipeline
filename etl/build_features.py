@@ -13,6 +13,24 @@ DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 connection_string = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 engine = create_engine(connection_string)
 
+
+import numpy as np
+
+def haversine_distance(lat1, lng1, lat2, lng2):
+    R = 6371
+    lat1, lng1, lat2, lng2 = map(np.radians, [lat1, lng1, lat2, lng2])
+    dlat = lat2 - lat1
+    dlng = lng2 - lng1
+    a = np.sin(dlat / 2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlng / 2)**2
+    c = 2 * np.arcsin(np.sqrt(a))
+    return R * c
+
+BRAZIL_LAT_MIN, BRAZIL_LAT_MAX = -34, 6
+BRAZIL_LNG_MIN, BRAZIL_LNG_MAX = -74, -32
+
+def is_valid_brazil_coord(lat, lng):
+    return (lat.between(BRAZIL_LAT_MIN, BRAZIL_LAT_MAX)) & (lng.between(BRAZIL_LNG_MIN, BRAZIL_LNG_MAX))
+
 query = """
 SELECT
     o.order_id,
@@ -27,7 +45,9 @@ SELECT
     p.product_length_cm,
     p.product_height_cm,
     p.product_width_cm,
-    s.seller_state
+    s.seller_state,
+    c.customer_zip_code_prefix,
+    s.seller_zip_code_prefix
 FROM orders o
 JOIN customers c ON o.customer_id = c.customer_id
 JOIN order_items oi ON o.order_id = oi.order_id
@@ -38,6 +58,40 @@ WHERE o.order_status = 'delivered'
 
 df = pd.read_sql(query, engine)
 
+df = pd.read_sql(query, engine)
+
+# --- Load and prep geolocation data ---
+geo_df = pd.read_sql("SELECT * FROM geolocation", engine)
+geo_avg = geo_df.groupby("geolocation_zip_code_prefix").agg({
+    "geolocation_lat": "mean",
+    "geolocation_lng": "mean",
+}).reset_index()
+
+# Join customer location
+df = df.merge(
+    geo_avg.rename(columns={
+        "geolocation_zip_code_prefix": "customer_zip_code_prefix",
+        "geolocation_lat": "customer_lat",
+        "geolocation_lng": "customer_lng",
+    }),
+    on="customer_zip_code_prefix", how="left",
+)
+
+# Join seller location
+df = df.merge(
+    geo_avg.rename(columns={
+        "geolocation_zip_code_prefix": "seller_zip_code_prefix",
+        "geolocation_lat": "seller_lat",
+        "geolocation_lng": "seller_lng",
+    }),
+    on="seller_zip_code_prefix", how="left",
+)
+
+# Compute distance, discard rows with impossible coordinates
+df["distance_km"] = haversine_distance(df["customer_lat"], df["customer_lng"], df["seller_lat"], df["seller_lng"])
+bad_customer = ~is_valid_brazil_coord(df["customer_lat"], df["customer_lng"])
+bad_seller = ~is_valid_brazil_coord(df["seller_lat"], df["seller_lng"])
+df.loc[bad_customer | bad_seller, "distance_km"] = np.nan
 
 agg_df = df.groupby("order_id").agg({
     "order_purchase_timestamp": "first",
@@ -52,6 +106,7 @@ agg_df = df.groupby("order_id").agg({
     "product_length_cm": "sum",
     "product_height_cm": "sum",
     "product_width_cm": "sum",
+    "distance_km": "mean",
 }).reset_index()
 
 
@@ -86,11 +141,12 @@ feature_cols = [
     "purchase_dayofweek",
     "purchase_month",
     "same_state",
+    "distance_km",
 ]
 
-X = agg_df[feature_cols]
+X = agg_df[feature_cols].copy()
+X["distance_km"] = X["distance_km"].fillna(X["distance_km"].median())
 y = agg_df["is_late"]
-
 print(X.isna().sum())
 print(y.value_counts())
 
@@ -118,7 +174,7 @@ print(confusion_matrix(y_test, y_pred))
 
 import joblib
 
-joblib.dump(model, "../models/late_delivery_model.pkl")
+joblib.dump(model, "models/late_delivery_model.pkl")
 print("Model saved.")
 
 importances = pd.Series(model.feature_importances_, index=feature_cols).sort_values(ascending=False)
